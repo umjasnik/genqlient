@@ -501,12 +501,12 @@ func (g *generator) convertDefinition(
 		goType := &goInterfaceType{
 			GoName:          name,
 			SharedFields:    sharedFields,
-			Implementations: make([]*goStructType, len(implementationTypes)),
+			Implementations: []*goStructType{},
 			Selection:       selectionSet,
 			descriptionInfo: desc,
 		}
 
-		for i, implDef := range implementationTypes {
+		for _, implDef := range implementationTypes {
 			// TODO(benkraft): In principle we should skip generating a Go
 			// field for __typename each of these impl-defs if you didn't
 			// request it (and it was automatically added by
@@ -520,12 +520,17 @@ func (g *generator) convertDefinition(
 
 			implStructTyp, ok := implTyp.(*goStructType)
 			if !ok { // (should never happen on a valid schema)
-				return nil, errorf(
-					pos, "interface %s had non-object implementation %s",
-					def.Name, implDef.Name)
+				_, ok := implTyp.(*goInterfaceType)
+				if !ok {
+					return nil, errorf(
+						pos, "interface %s had non-object implementation %s",
+						def.Name, implDef.Name)
+				}
+			} else {
+				goType.Implementations = append(goType.Implementations, implStructTyp)
 			}
-			goType.Implementations[i] = implStructTyp
 		}
+
 		return g.addType(goType, goType.GoName, pos)
 
 	case ast.Enum:
